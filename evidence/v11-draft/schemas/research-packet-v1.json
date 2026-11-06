@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/secbot/research-packet-v1.json",
+  "title": "Security Super Bot research packet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "watch_state", "candidate_state", "source", "scope", "evidence", "next_action", "hash_basis", "packet_sha256", "acknowledged_packet_sha256"],
+  "properties": {
+    "schema": {"const": "secbot.research_packet.v1"},
+    "watch_state": {"enum": ["NO_CHANGE", "NEW_DELTA", "PARTIAL", "FAILED"]},
+    "candidate_state": {"type": ["string", "null"], "enum": ["KILLED", "HOLD", "LOCAL_PROOF_READY", "LOCALLY_REPRODUCED", "REPORT_ROUTE_UNVERIFIED", null]},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "baseline", "acknowledged_head", "head", "retrieved_at"],
+      "properties": {
+        "repository": {"type": "string", "format": "uri"},
+        "baseline": {"type": "string", "minLength": 1},
+        "acknowledged_head": {"type": "string", "minLength": 1},
+        "head": {"type": ["string", "null"], "minLength": 1},
+        "retrieved_at": {"type": "string", "format": "date-time"},
+        "changed_paths": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "live_testing_allowed"],
+      "properties": {
+        "authority": {"type": "string"},
+        "program": {"type": "string"},
+        "live_testing_allowed": {"type": "boolean"}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fingerprint", "source", "control", "sink", "protected_effect", "preconditions", "counterevidence", "prior_art"],
+      "properties": {
+        "fingerprint": {"type": "string"},
+        "source": {"type": "string"},
+        "control": {"type": "string"},
+        "sink": {"type": "string"},
+        "protected_effect": {"type": "string"},
+        "preconditions": {"type": "array", "items": {"type": "string"}},
+        "counterevidence": {"type": "array", "items": {"type": "string"}},
+        "prior_art": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "parked_alternatives": {"type": "array", "items": {"type": "string"}},
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["citations", "positive_test", "negative_test", "actions_taken", "actions_not_taken"],
+      "properties": {
+        "citations": {"type": "array", "items": {"type": "string", "format": "uri"}},
+        "positive_test": {"type": ["string", "null"]},
+        "negative_test": {"type": ["string", "null"]},
+        "actions_taken": {"type": "array", "items": {"type": "string"}},
+        "actions_not_taken": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "next_action": {"type": "string"},
+    "hash_basis": {"const": "sha256(canonical-json-with-packet_sha256-omitted)"},
+    "packet_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of this packet after removing packet_sha256, serializing recursively with lexicographically sorted keys, UTF-8, and no insignificant whitespace."
+    },
+    "acknowledged_packet_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "The packet_sha256 of the last successfully acknowledged NEW_DELTA packet, or null before the first acknowledgement. This value is carried unchanged by NO_CHANGE, PARTIAL, and FAILED packets."
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"watch_state": {"const": "NO_CHANGE"}}},
+      "then": {"properties": {"source": {"properties": {"head": {"type": "string", "minLength": 1}}}}}
+    },
+    {
+      "if": {"properties": {"watch_state": {"enum": ["PARTIAL", "FAILED"]}}},
+      "then": {"properties": {"candidate_state": {"const": "HOLD"}}}
+    },
+    {
+      "if": {"properties": {"watch_state": {"const": "NO_CHANGE"}}},
+      "then": {"properties": {"candidate_state": {"const": null}}, "not": {"required": ["candidate"]}}
+    },
+    {
+      "if": {"properties": {"watch_state": {"const": "NEW_DELTA"}}},
+      "then": {"not": {"properties": {"candidate_state": {"const": null}}}}
+    }
+  ]
+}
